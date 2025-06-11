@@ -2,3 +2,4 @@ DS_Store
 photos/
 __pycache__/
 env/
+.*.swp
