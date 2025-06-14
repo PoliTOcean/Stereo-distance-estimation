@@ -208,11 +208,31 @@ def compute_distance(selected_points):
     # Draw a line between the points
     cv2.line(img, (int(point1_pixel[0][0]), int(point1_pixel[0][1])), (int(midpoint_pixel[0][0]), int(midpoint_pixel[0][1])), (255, 0, 0), 2)
 
+    # Put distance measure on screen inside a white box
+    x1, y1 = 50, 50
+    x2, y2 = 800, 220
+    cv2.rectangle(img, (x1, y1), (x2, y2), color=(255, 255, 255), thickness=-1)
+
+    # Define text parameters
+    rounded = str(round(distance / 10, 2))
+    text = f"Estimated Length: {rounded} cm"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1
+    font_thickness = 2
+    text_color = (0, 0, 0)  # Black 
+
+    # Get text size to center it
+    (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
+    text_x = x1 + (x2 - x1 - text_width) // 2
+    text_y = y1 + (y2 - y1 + text_height) // 2
+
+    cv2.putText(img, text, (text_x, text_y), font, font_scale, text_color, font_thickness, cv2.LINE_AA)
+
     while True:
         cv2.imshow("Distance", img)
         key = cv2.waitKey(20) & 0xFF 
 
-        if key == 27: break
+        if key == 27 or key == ord("q"): break
 
     cv2.destroyAllWindows()
 
