@@ -6,12 +6,18 @@ import sys
 import matplotlib.pyplot as plt
 from gui import LiveGUI 
 import tkinter
+from tkinter import filedialog
 
 sys.path.append('SuperGluePretrainedNetwork')
 from SuperGluePretrainedNetwork.models.superpoint import SuperPoint
 from SuperGluePretrainedNetwork.models.superglue import SuperGlue
 
 from scene import Scene, States
+
+# Global variables for file paths
+LEFT_IMAGE_PATH = ''
+RIGHT_IMAGE_PATH = ''
+REMAP_DATA_PATH = 'calibration_results/remap_data.npz'
 
 
 def mouse_callback(event, x, y, flags, param):
@@ -27,14 +33,8 @@ def mouse_callback(event, x, y, flags, param):
 
 def load_and_calibrate(left_test_path, right_test_path):
     # Change acquisition method
-    img_left_test = cv2.imread(left_test_path)
-    img_right_test = cv2.imread(right_test_path)
-
-    data_map = np.load("remap_data.npz")
-    map1_left = data_map["map1_left"]
-    map1_right = data_map["map1_right"]
-    map2_left = data_map["map2_left"]
-    map2_right = data_map["map2_right"]
+    img_left_test = cv2.imread(left_test_path, cv2.IMREAD_GRAYSCALE)
+    img_right_test = cv2.imread(right_test_path, cv2.IMREAD_GRAYSCALE)
 
     if img_left_test is None or img_right_test is None:
         print("Error: Could not load test images.")
@@ -65,7 +65,7 @@ def compute_keypoints():
         scene.keypoints.append(kpt)
         scene.draw_point((int(kpt[0]), int(kpt[1])), 2, (0, 255, 0))
 
-def match_keypoints(input_data, radius, a, b, crop_size=300, slope_limit=0.3):
+def match_keypoints(input_data, radius, a, b, crop_size=300, slope_limit=0.5):
     all_valid_matches = [] 
     half_crop = crop_size // 2
     for x_click, y_click in scene.selected_points:
@@ -208,25 +208,10 @@ def compute_distance(selected_points):
     # Draw a line between the points
     cv2.line(img, (int(point1_pixel[0][0]), int(point1_pixel[0][1])), (int(midpoint_pixel[0][0]), int(midpoint_pixel[0][1])), (255, 0, 0), 2)
 
-    # Put distance measure on screen inside a white box
-    x1, y1 = 50, 50
-    x2, y2 = 800, 220
-    cv2.rectangle(img, (x1, y1), (x2, y2), color=(255, 255, 255), thickness=-1)
-
-    # Define text parameters
-    rounded = str(round(distance / 10, 2))
-    text = f"Estimated Length: {rounded} cm"
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1
-    font_thickness = 2
-    text_color = (0, 0, 0)  # Black 
-
-    # Get text size to center it
-    (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
-    text_x = x1 + (x2 - x1 - text_width) // 2
-    text_y = y1 + (y2 - y1 + text_height) // 2
-
-    cv2.putText(img, text, (text_x, text_y), font, font_scale, text_color, font_thickness, cv2.LINE_AA)
+    # Display the distance on the image
+    distance_cm = distance / 10  # Convert meters to centimeters
+    text = f"Lenght: {distance_cm:.2f} cm"
+    cv2.putText(img, text, (10, img.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     while True:
         cv2.imshow("Distance", img)
@@ -287,6 +272,17 @@ def main():
 
 
 if __name__ == "__main__":
+    # Open file selection dialogs
+    root = tkinter.Tk()
+    root.withdraw()  # Hide the root window
+
+    LEFT_IMAGE_PATH = filedialog.askopenfilename(title="Select Left Image")
+    RIGHT_IMAGE_PATH = filedialog.askopenfilename(title="Select Right Image")
+
+    if not LEFT_IMAGE_PATH or not RIGHT_IMAGE_PATH:
+        print("Error: Left or Right image not selected. Exiting.")
+        sys.exit()
+
     # Define device
     if torch.cuda.is_available(): device = 'cuda'
     elif torch.backends.mps.is_available(): device = 'mps'
@@ -294,11 +290,21 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
     
     # Load camera parameters
-    P1 = np.load('P1.npy')
-    P2 = np.load('P2.npy')
+    data_map = np.load(REMAP_DATA_PATH)
+    map1_left = data_map["map1_left"]
+    map1_right = data_map["map1_right"]
+    map2_left = data_map["map2_left"]
+    map2_right = data_map["map2_right"]
+    P1 = data_map["P1"]
+    P2 = data_map["P2"]
+    print("Camera parameters loaded successfully.")
     
-    img0 = cv2.imread('img_left_rectified.jpg',0)
-    img1 = cv2.imread('img_right_rectified.jpg',0)
+    # Load and calibrate images
+    img0, img1 = load_and_calibrate(LEFT_IMAGE_PATH, RIGHT_IMAGE_PATH)
+
+    if img0 is None or img1 is None:
+        print("Failed to load or calibrate images. Exiting.")
+        sys.exit()
 
     scene = Scene(img0, img1)
     gui = LiveGUI()

@@ -31,3 +31,16 @@ After this step the script will compute the lenght distance between the two edge
 At every step information are available on the terminal. 
 
 
+The script 
+
+```bash
+distance_manual.py
+```
+
+let's manuallt select all the point from left and right images: first select a point on the left image, then select the same point on the right image manually and so on, it will compute the disparity and the lenght of the segment. 
+
+use 
+```bash
+stereo_calibration.py
+```
+to compute the intrinsic and extrinsic parameters of the stereo camera that are then used by the other scripts.
